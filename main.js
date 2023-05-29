@@ -257,9 +257,9 @@ Soleng.Economics.Resources = {
 	Resource: class {
 		constructor(name, marketValue, volume, amount) {
 			this.name = name || "Metal Ore"
-			this.marketValue = marketValue || 1_000 // per Unit
-			this.volume      = volume      ||     1 // Meters Cubed
-			this.amount      = amount      ||    10 // Current Units
+			this.marketValue = marketValue || 10 // per Unit
+			this.volume      = volume      ||  1 // Meters Cubed
+			this.amount      = amount      || 10 // Current Units
 		}
 	}
 }
@@ -269,25 +269,26 @@ Soleng.Economics.Departments = {
 			this.name = name || "Half Section"
 			this.type = type || "Redundant"
 			this.productivity = productivity || 1.0 // Output per unit time
-			this.budget       = budget       || 10  // Cost per unit time
+			this.budget       = budget       ||   5 // Cost per unit time
 			this.morale       = morale       || 1.0 // Productivity modifier
-			this.manager      = manager      || 1.0 // Accuracy modifier
+			this.manager      = manager      || 0.9 // Accuracy modifier
 		}
 		cost(time) {
 			time = time || 1
-			return time * (this.budget - this.budget * (this.manager - 1))
+			return time * (this.budget - Math.random() * (this.budget * (this.manager - 1)))
 		}
 		operate(time) {
 			time = time || 1
-			return time * (this.productivity - this.productivity * (this.morale - 1))
+			return time * (this.productivity - Math.random() * (this.productivity * (this.morale - 1)))
 		}
 	}
 }
 Soleng.Economics.Corporations = {}
 Soleng.Economics.Corporations.Subsidiary = class {
-	constructor(funds, resource, departments) {
+	constructor(funds, resource, departments, log) {
 		this.funds    = funds    || 1_000_000
-		this.resource = resource || new Soleng.Economics.Resources.Resource("Iron Ore")	
+		this.resource = resource || new Soleng.Economics.Resources.Resource("Iron Ore")
+		this.log      = log      || new Soleng.Events.Observer()
 		this.Departments = departments || [
 			new Soleng.Economics.Departments.Department("Mining Division", "Extraction"),
 			new Soleng.Economics.Departments.Department("Logistics Division", "Conversion")
@@ -295,16 +296,26 @@ Soleng.Economics.Corporations.Subsidiary = class {
 	}
 	operate(time) {
 		time = time || 1;
+		let profit = 0
 		for (let department of this.Departments) {
-			this.funds -= department.cost(time)
+			let operatingCost = department.cost(time)
+			this.funds -= operatingCost
+			profit -= operatingCost
+			this.log.addEvent(`${department.name} consumed "${operatingCost}" credits.`)
 			if (department.type === "Extraction") {
-				this.resource.amount += department.operate(time)
+				let resources = department.operate(time)
+				this.log.addEvent(`${department.name} generated "${resources}" ${this.resource.name}.`)
+				this.resource.amount += resources
 			}
 			if (department.type === "Conversion") {
 				let unitsSold = Math.min(department.operate(time), this.resource.amount)
 				this.resource.amount -= unitsSold
-				this.funds += unitsSold * (this.resource.marketValue * department.manager)
+				let revenue = unitsSold * (this.resource.marketValue - this.resource.marketValue * (Math.random() * (1 - department.manager)))
+				this.funds += revenue
+				profit += revenue
+				this.log.addEvent(`${department.name} sold ${unitsSold} ${this.resource.name} for ${revenue} credits.`)
 			}
 		}
+		this.log.addEvent(`Total profit over the last ${time} days: ${profit}`)
 	}
 }
