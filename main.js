@@ -172,6 +172,12 @@ Soleng.Display = class {
 	    ctx.stroke();
 
     }
+	drawText(x, y, text, color = 'black', align = 'center') {
+		let ctx = this.Context
+		ctx.fillStyle = color
+		ctx.textAlign = align
+		ctx.fillText(text, x, y)
+	}
     clear(color) {
         let ctx = this.Context
         color = color || "black"
@@ -200,6 +206,25 @@ Soleng.Graphics = {
 				this.type = "Ring"
 			}
 		},
+		Text: class {
+			constructor(x, y, string, color) {
+				this.x = x
+				this.y = y
+				this.string = string
+				this.color = color
+				this.type = "Text"
+			}
+		},
+		Value: class {
+			constructor(x, y, target, value, color) {
+				this.x = x
+				this.y = y
+				this.target = target
+				this.value = value
+				this.color = color
+				this.type = "Value"				
+			}
+		}
 	}
 }
 Soleng.Scene = class {
@@ -243,6 +268,24 @@ Soleng.Scene = class {
 						sprite.y,
 						sprite.radius,
 						sprite.color
+					)
+					break;
+				case "Text":
+					this.display.drawText(
+						sprite.x,
+						sprite.y,
+						sprite.string,
+						sprite.color,
+						'center'
+					)
+					break;
+				case "Value":
+					this.display.drawText(
+						sprite.x,
+						sprite.y,
+						sprite.target[sprite.value],
+						sprite.color,
+						'center'
 					)
 					break;
 				default:
