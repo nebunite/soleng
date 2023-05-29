@@ -252,7 +252,62 @@ Soleng.Scene = class {
 		}
 	}
 }
-
+Soleng.Economics = {}
+Soleng.Economics.Resources = {
+	Resource: class {
+		constructor(name, marketValue, volume, amount) {
+			this.name = name || "Metal Ore"
+			this.marketValue = marketValue || 1_000 // per Unit
+			this.volume      = volume      ||     1 // Meters Cubed
+			this.amount      = amount      ||    10 // Current Units
+		}
+	}
+}
+Soleng.Economics.Departments = {
+	Department: class {
+		constructor(name, type, productivity, budget, morale, manager) {
+			this.name = name || "Half Section"
+			this.type = type || "Redundant"
+			this.productivity = productivity || 1.0 // Output per unit time
+			this.budget       = budget       || 10  // Cost per unit time
+			this.morale       = morale       || 1.0 // Productivity modifier
+			this.manager      = manager      || 1.0 // Accuracy modifier
+		}
+		cost(time) {
+			time = time || 1
+			return time * (this.budget - this.budget * (this.manager - 1))
+		}
+		operate(time) {
+			time = time || 1
+			return time * (this.productivity - this.productivity * (this.morale - 1))
+		}
+	}
+}
+Soleng.Economics.Corporations = {}
+Soleng.Economics.Corporations.Subsidiary = class {
+	constructor(funds, resource, departments) {
+		this.funds    = funds    || 1_000_000
+		this.resource = resource || new Soleng.Economics.Resources.Resource("Iron Ore")	
+		this.Departments = departments || [
+			new Soleng.Economics.Departments.Department("Mining Division", "Extraction"),
+			new Soleng.Economics.Departments.Department("Logistics Division", "Conversion")
+		]
+	}
+	operate(time) {
+		time = time || 1;
+		for (let department of this.Departments) {
+			this.funds -= department.cost(time)
+			if (department.type === "Extraction") {
+				this.resource.amount += department.operate(time)
+			}
+			if (department.type === "Conversion") {
+				let unitsSold = Math.min(department.operate(time), this.resource.amount)
+				this.resource.amount -= unitsSold
+				this.funds += unitsSold * (this.resource.marketValue * department.manager)
+			}
+		}
+	}
+}
 const Game = {}
 Game.Log = new Soleng.Events.Observer()
 Game.Display = new Soleng.Display(800, 600, Game.Log)
