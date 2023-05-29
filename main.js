@@ -293,6 +293,8 @@ Soleng.Economics.Corporations.Subsidiary = class {
 			new Soleng.Economics.Departments.Department("Mining Division", "Extraction"),
 			new Soleng.Economics.Departments.Department("Logistics Division", "Conversion")
 		]
+
+		this.timePassed = 0
 	}
 	operate(time) {
 		time = time || 1;
@@ -316,6 +318,37 @@ Soleng.Economics.Corporations.Subsidiary = class {
 				this.log.addEvent(`${department.name} sold ${unitsSold} ${this.resource.name} for ${revenue} credits.`)
 			}
 		}
+		this.timePassed += time
 		this.log.addEvent(`Total profit over the last ${time} days: ${profit}`)
+	}
+	debug() {
+		console.log('+-----------------------------------------+');
+		console.log('|              CORPORATION                |');
+		console.log('|                                         |');
+		console.log(`| Current Funds: ${this.funds} Credits       |`);
+		console.log('|                                         |');
+		console.log('|+----------------+-----+----------------+|');
+		console.log('||    Resource    |Unit | Market Value  ||');
+		console.log('|+----------------+-----+----------------+|');
+		console.log(`|| ${this.resource.name} | ${this.resource.amount} | ${this.resource.marketValue} Credits ||`);
+		console.log('|+----------------+-----+----------------+|');
+		console.log('|                                         |');
+		console.log('|+---------------+------------------+-----+---------+----------+---------------------+');
+		console.log('||  Department   | Productivity/Hr  |Budget|  Morale |ManagerSkill|Resource Produced/Sold|');
+		console.log('|+---------------+------------------+-----+---------+----------+---------------------+');
+		
+		for(let department of this.Departments){
+			let deptName = department.name;
+			let prod = department.productivity;
+			let budget = department.budget;
+			let morale = department.morale;
+			let manager = department.manager;
+			
+			console.log(`|| ${deptName} | ${prod} units | ${budget} | ${morale} | ${manager} |`);
+			console.log('|+---------------+------------------+-----+---------+----------+');
+		}
+		console.log('|                                         |');
+		console.log(`| Time Passed: ${this.timePassed} Days                    |`);
+		console.log('+-----------------------------------------+');
 	}
 }
