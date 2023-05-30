@@ -141,6 +141,8 @@ Soleng.Display = class {
 
         this.Observer = observer
 
+		this.Fonts = []
+
         this.Canvas.addEventListener("click", this.handleClick.bind(this));
     }
     handleClick(event) {
@@ -155,7 +157,7 @@ Soleng.Display = class {
     		)
         }
     }
-    drawCircle(x, y, radius, color) {
+    fillCircle(x, y, radius, color) {
         let ctx = this.Context
 
         ctx.beginPath();
@@ -164,7 +166,7 @@ Soleng.Display = class {
         ctx.fill();
         ctx.closePath();
     }
-    drawRing(x, y, radius, color) {
+    strokeCircle(x, y, radius, color) {
     	let ctx = this.Context;
 	    ctx.beginPath();
 	    ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -172,11 +174,57 @@ Soleng.Display = class {
 	    ctx.stroke();
 
     }
-	drawText(x, y, text, color = 'black', align = 'center') {
+	fillRect(x, y, width, height, color) {
 		let ctx = this.Context
+		ctx.fillStyle = color
+		ctx.fillRect(x, y, width, height)
+	}
+	strokeRect(x, y, width, height, color) {
+		let ctx = this.Context
+		ctx.strokeStyle = color
+		ctx.strokeRect(x, y, width, height)
+	}
+	drawText(x, y, text, color = 'white', align = 'center', font) {
+		let ctx = this.Context
+		console.log(font)
+		if (font) { ctx.font = font}
 		ctx.fillStyle = color
 		ctx.textAlign = align
 		ctx.fillText(text, x, y)
+	}
+	getFont() {
+		let ctx = this.Context
+		let fontSetting = ctx.font
+		let font = fontSetting.slice(fontSetting.indexOf(" ") + 1)
+
+		return font
+	}
+	fillTextArea(x, y, width, height, text, color = 'white', align = 'center', font = this.getFont()) {
+		let ctx = this.Context
+		ctx.fillStyle = color
+		let fontSize = Math.round(height * 0.9)
+		ctx.font = `${fontSize}px ${font}`
+		// Scale
+		let textWidth = ctx.measureText(text).width 
+		while (textWidth > width && fontSize > 0) {
+			fontSize--
+			ctx.font = `${fontSize}px ${font}`
+			textWidth = ctx.measureText(text).width
+		}
+		// Align
+		let textX
+		switch(align) {
+			case 'center':
+				textX = x + (width - textWidth) / 2
+				break;
+			case 'right':
+				textX = x + width - textWidth
+				break;
+			default:
+				textX = x
+		}
+		let textY = y + (height + fontSize) / 2
+		this.drawText(textX, textY, text, color, 'left')
 	}
     clear(color) {
         let ctx = this.Context
@@ -185,6 +233,17 @@ Soleng.Display = class {
         ctx.fillStyle = color
         ctx.fillRect(0, 0, this.Canvas.width, this.Canvas.width)
     }
+	addFont(fontName, urlPath) {
+		var newStyle = document.createElement('style');
+		newStyle.appendChild(document.createTextNode(`
+			@font-face {
+				font-family: ${fontName};
+				src: url(${urlPath}) format('opentype');
+			}
+		`));
+		document.head.appendChild(newStyle);
+
+	}
 }
 Soleng.Graphics = {
 	Shape: {
@@ -255,7 +314,7 @@ Soleng.Scene = class {
 		for (let sprite of this.Sprites) {
 			switch (sprite.type) {
 				case "Circle":
-					this.display.drawCircle(
+					this.display.fillCircle(
 						sprite.x,
 						sprite.y,
 						sprite.radius,
@@ -263,7 +322,7 @@ Soleng.Scene = class {
 					)
 					break;
 				case "Ring":
-					this.display.drawRing(
+					this.display.strokeCircle(
 						sprite.x,
 						sprite.y,
 						sprite.radius,
