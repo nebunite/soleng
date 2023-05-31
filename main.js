@@ -252,8 +252,8 @@ Soleng.Display = class {
 
 	}
     drawGrid(x, y, width, height, grid) {
-        let cellWidth = Math.floor(width / grid.width);
-        let cellHeight = Math.floor(height / grid.height);
+        let cellWidth = (width / grid.width);
+        let cellHeight = (height / grid.height);
 
         for (let i = 0; i < grid.height; i++) {
             for (let j = 0; j < grid.width; j++) {
@@ -318,6 +318,8 @@ Soleng.Graphics = {
 				this.symbol  = symbol || ' ';
 				this.fgColor = fgColor || 'white';
 				this.bgColor = bgColor || 'black';
+
+				this.type = "Glyph"
 			}
 		}
 	},
@@ -328,6 +330,8 @@ Soleng.Graphics = {
 				this.height    = height    || 10
 				this.font      = font      || 'Consolas'
 				this.fillGlyph = fillGlyph || new Soleng.Graphics.Shape.Glyph('M', 'white', 'black')
+
+				this.type = "Grid"
 
 				this.grid = new Array(height);
 				for (let y = 0; y < height; y++) {
@@ -360,36 +364,32 @@ Soleng.Graphics = {
 				}
 			}
 			drawBox(x, y, width, height, corner = '+', horizontal = '-', vertical = '|', blank = ' ') {
-				let cornerGlyph = new Soleng.Graphics.Shape.Glyph(
-					corner, 
-					this.fillGlyph.fgColor,
-					this.fillGlyph.bgColor
-				)
-				let horizontalGlyph = new Soleng.Graphics.Shape.Glyph(
-					horizontal, 
-					this.fillGlyph.fgColor,
-					this.fillGlyph.bgColor
-				)
-				let verticalGlyph = new Soleng.Graphics.Shape.Glyph(
-					vertical, 
-					this.fillGlyph.fgColor,
-					this.fillGlyph.bgColor
-				)
-				let blankGlyph = new Soleng.Graphics.Shape.Glyph(
-					blank, 
-					this.fillGlyph.fgColor,
-					this.fillGlyph.bgColor
-				)
 				for (let dx = 0; dx < width; dx++) {
 					for (let dy = 0; dy < height; dy++) {
 						if ((dx === 0 || dx === width - 1) && (dy === 0 || dy === height - 1)) {
-							this.setGlyphAt(x + dx, y + dy, cornerGlyph)
+							this.setGlyphAt(x + dx, y + dy, new Soleng.Graphics.Shape.Glyph(
+								corner, 
+								this.fillGlyph.fgColor,
+								this.fillGlyph.bgColor
+							))
 						} else if (dy === 0 || dy === height - 1) {
-							this.setGlyphAt(x + dx, y + dy, horizontalGlyph)
+							this.setGlyphAt(x + dx, y + dy, new Soleng.Graphics.Shape.Glyph(
+								horizontal, 
+								this.fillGlyph.fgColor,
+								this.fillGlyph.bgColor
+							))
 						} else if (dx === 0 || dx === width - 1) {
-							this.setGlyphAt(x + dx, y + dy, verticalGlyph)
+							this.setGlyphAt(x + dx, y + dy, new Soleng.Graphics.Shape.Glyph(
+								vertical, 
+								this.fillGlyph.fgColor,
+								this.fillGlyph.bgColor
+							))
 						} else {
-							this.setGlyphAt(x + dx, y + dy, blankGlyph)
+							this.setGlyphAt(x + dx, y + dy, new Soleng.Graphics.Shape.Glyph(
+								blank, 
+								this.fillGlyph.fgColor,
+								this.fillGlyph.bgColor
+							))
 						}
 					}
 				}
@@ -460,6 +460,15 @@ Soleng.Scene = class {
 						'center'
 					)
 					break;
+				case "Grid":
+					this.display.drawGrid(
+						0, 
+						0, 
+						this.display.Canvas.width,
+						this.display.Canvas.height,
+						sprite
+					)
+					break;
 				default:
 					console.log("I don't know this shape!")
 					break;
@@ -500,11 +509,13 @@ Soleng.Economics.Departments = {
 }
 Soleng.Economics.Corporations = {}
 Soleng.Economics.Corporations.Subsidiary = class {
-	constructor(name, funds, resource, departments, log) {
+	constructor(name, funds, resources, departments, log) {
 		this.name     = name     || "Technora Corporation"
 		this.funds    = funds    || 1_000_000
-		this.resource = resource || new Soleng.Economics.Resources.Resource("Iron Ore")
 		this.log      = log      || new Soleng.Events.Observer()
+		this.Resources   = resources   || [
+			new Soleng.Economics.Resources.Resource("Iron Ore")
+		]
 		this.Departments = departments || [
 			new Soleng.Economics.Departments.Department("Mining Division", "Extraction"),
 			new Soleng.Economics.Departments.Department("Logistics Division", "Conversion")
@@ -522,16 +533,16 @@ Soleng.Economics.Corporations.Subsidiary = class {
 			this.log.addEvent(`${department.name} consumed "${operatingCost}" credits.`)
 			if (department.type === "Extraction") {
 				let resources = department.operate(time)
-				this.log.addEvent(`${department.name} generated "${resources}" ${this.resource.name}.`)
-				this.resource.amount += resources
+				this.log.addEvent(`${department.name} generated "${resources}" ${this.Resources[0].name}.`)
+				this.Resources[0].amount += resources
 			}
 			if (department.type === "Conversion") {
-				let unitsSold = Math.min(department.operate(time), this.resource.amount)
-				this.resource.amount -= unitsSold
-				let revenue = unitsSold * (this.resource.marketValue - this.resource.marketValue * (Math.random() * (1 - department.manager)))
+				let unitsSold = Math.min(department.operate(time), this.Resources[0].amount)
+				this.Resources[0].amount -= unitsSold
+				let revenue = unitsSold * (this.Resources[0].marketValue - this.Resources[0].marketValue * (Math.random() * (1 - department.manager)))
 				this.funds += revenue
 				profit += revenue
-				this.log.addEvent(`${department.name} sold ${unitsSold} ${this.resource.name} for ${revenue} credits.`)
+				this.log.addEvent(`${department.name} sold ${unitsSold} ${this.Resources[0].name} for ${revenue} credits.`)
 			}
 		}
 		this.timePassed += time
@@ -557,12 +568,12 @@ Soleng.Economics.Corporations.Subsidiary = class {
 		}
 	
 		console.log('+----------------------------------------------------------------------------------+');
-		console.log('| Resources          | Amount       | Market Value | Volume                      |');
+		console.log('| Resources           | Amount       | Market Value | Volume                      |');
 		console.log('|----------------------------------------------------------------------------------|');
-		let resName = this.resource.name.padEnd(18, ' ');
-		let resAmount = this.resource.amount.toString().padEnd(12, ' ');
-		let resMarketValue = `${this.resource.marketValue}/Unit`.padEnd(13, ' ');
-		let resVolume = `${this.resource.volume} m^3/Unit`.padEnd(30, ' ');
+		let resName = this.Resources[0].name.padEnd(18, ' ');
+		let resAmount = this.Resources[0].amount.toString().padEnd(12, ' ');
+		let resMarketValue = `${this.Resources[0].marketValue}/Unit`.padEnd(13, ' ');
+		let resVolume = `${this.Resources[0].volume} m^3/Unit`.padEnd(30, ' ');
 	
 		console.log(`| ${resName}| ${resAmount}| ${resMarketValue}| ${resVolume}|`);
 		console.log('+----------------------------------------------------------------------------------+');
