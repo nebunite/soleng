@@ -184,9 +184,16 @@ Soleng.Display = class {
 		ctx.strokeStyle = color
 		ctx.strokeRect(x, y, width, height)
 	}
+	strokeLine(x1, y1, x2, y2, color = 'white') {
+		let ctx = this.Context
+		ctx.beginPath();
+		ctx.moveTo(x1, y1);
+		ctx.lineTo(x2, y2);
+		ctx.strokeStyle = color;
+		ctx.stroke();
+	}
 	drawText(x, y, text, color = 'white', align = 'center', font) {
 		let ctx = this.Context
-		console.log(font)
 		if (font) { ctx.font = font}
 		ctx.fillStyle = color
 		ctx.textAlign = align
@@ -202,7 +209,7 @@ Soleng.Display = class {
 	fillTextArea(x, y, width, height, text, color = 'white', align = 'center', font = this.getFont()) {
 		let ctx = this.Context
 		ctx.fillStyle = color
-		let fontSize = Math.round(height * 0.9)
+		let fontSize = Math.round(height * 0.8)
 		ctx.font = `${fontSize}px ${font}`
 		// Scale
 		let textWidth = ctx.measureText(text).width 
@@ -223,8 +230,8 @@ Soleng.Display = class {
 			default:
 				textX = x
 		}
-		let textY = y + (height + fontSize) / 2
-		this.drawText(textX, textY, text, color, 'left')
+		let textY = Math.round(y + (height + fontSize * 0.8) / 2)
+		this.drawText(textX, textY, text, color, 'left', font)
 	}
     clear(color) {
         let ctx = this.Context
@@ -244,6 +251,26 @@ Soleng.Display = class {
 		document.head.appendChild(newStyle);
 
 	}
+    drawGrid(x, y, width, height, grid) {
+        let cellWidth = Math.floor(width / grid.width);
+        let cellHeight = Math.floor(height / grid.height);
+
+        for (let i = 0; i < grid.height; i++) {
+            for (let j = 0; j < grid.width; j++) {
+                let glyph = grid.getGlyphAt(j, i);
+
+                // Draw the background color of the cell
+                if (glyph.bgColor) {
+                    this.fillRect(x + j * cellWidth, y + i * cellHeight, cellWidth, cellHeight, glyph.bgColor);
+                }
+
+                // Draw the glyph character in the foreground color
+                if (glyph.symbol && glyph.fgColor) {
+                    this.fillTextArea(x + j * cellWidth, y + i * cellHeight, cellWidth, cellHeight, glyph.symbol, glyph.fgColor, 'center', grid.font);
+                }
+            }
+        }
+    }
 }
 Soleng.Graphics = {
 	Shape: {
@@ -275,13 +302,97 @@ Soleng.Graphics = {
 			}
 		},
 		Value: class {
-			constructor(x, y, target, value, color) {
+			constructor(x, y, w, h, target, value, color) {
 				this.x = x
 				this.y = y
+				this.w = w
+				this.h = h
 				this.target = target
 				this.value = value
 				this.color = color
 				this.type = "Value"				
+			}
+		},
+		Glyph: class {
+			constructor(symbol, fgColor, bgColor) {
+				this.symbol  = symbol || ' ';
+				this.fgColor = fgColor || 'white';
+				this.bgColor = bgColor || 'black';
+			}
+		}
+	},
+	Composite: {
+		Grid: class {
+			constructor(width, height, font, fillGlyph) {
+				this.width     = width     || 10
+				this.height    = height    || 10
+				this.font      = font      || 'Consolas'
+				this.fillGlyph = fillGlyph || new Soleng.Graphics.Shape.Glyph('M', 'white', 'black')
+
+				this.grid = new Array(height);
+				for (let y = 0; y < height; y++) {
+					this.grid[y] = new Array(width);
+					for (let x = 0; x < width; x++) {
+						this.grid[y][x] = new Soleng.Graphics.Shape.Glyph(
+							this.fillGlyph.symbol,
+							this.fillGlyph.fgColor,
+							this.fillGlyph.bgColor
+						);
+					}
+				}
+			}
+			getGlyphAt(x, y) {
+				if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+					return null;
+				}
+				return this.grid[y][x];
+			}
+			setGlyphAt(x, y, glyph) {
+				if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+					return; // Out of bounds
+				}
+				this.grid[y][x] = glyph;
+			}
+			writeText(x, y, text) {
+				for (let i = 0; i < text.length; i++) {
+					if (x + i >= this.width) { break }
+					this.grid[y][x+i].symbol = text[i]
+				}
+			}
+			drawBox(x, y, width, height, corner = '+', horizontal = '-', vertical = '|', blank = ' ') {
+				let cornerGlyph = new Soleng.Graphics.Shape.Glyph(
+					corner, 
+					this.fillGlyph.fgColor,
+					this.fillGlyph.bgColor
+				)
+				let horizontalGlyph = new Soleng.Graphics.Shape.Glyph(
+					horizontal, 
+					this.fillGlyph.fgColor,
+					this.fillGlyph.bgColor
+				)
+				let verticalGlyph = new Soleng.Graphics.Shape.Glyph(
+					vertical, 
+					this.fillGlyph.fgColor,
+					this.fillGlyph.bgColor
+				)
+				let blankGlyph = new Soleng.Graphics.Shape.Glyph(
+					blank, 
+					this.fillGlyph.fgColor,
+					this.fillGlyph.bgColor
+				)
+				for (let dx = 0; dx < width; dx++) {
+					for (let dy = 0; dy < height; dy++) {
+						if ((dx === 0 || dx === width - 1) && (dy === 0 || dy === height - 1)) {
+							this.setGlyphAt(x + dx, y + dy, cornerGlyph)
+						} else if (dy === 0 || dy === height - 1) {
+							this.setGlyphAt(x + dx, y + dy, horizontalGlyph)
+						} else if (dx === 0 || dx === width - 1) {
+							this.setGlyphAt(x + dx, y + dy, verticalGlyph)
+						} else {
+							this.setGlyphAt(x + dx, y + dy, blankGlyph)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -339,9 +450,11 @@ Soleng.Scene = class {
 					)
 					break;
 				case "Value":
-					this.display.drawText(
+					this.display.fillTextArea(
 						sprite.x,
 						sprite.y,
+						sprite.w,
+						sprite.h,
 						sprite.target[sprite.value],
 						sprite.color,
 						'center'
@@ -387,7 +500,8 @@ Soleng.Economics.Departments = {
 }
 Soleng.Economics.Corporations = {}
 Soleng.Economics.Corporations.Subsidiary = class {
-	constructor(funds, resource, departments, log) {
+	constructor(name, funds, resource, departments, log) {
+		this.name     = name     || "Technora Corporation"
 		this.funds    = funds    || 1_000_000
 		this.resource = resource || new Soleng.Economics.Resources.Resource("Iron Ore")
 		this.log      = log      || new Soleng.Events.Observer()
@@ -424,33 +538,34 @@ Soleng.Economics.Corporations.Subsidiary = class {
 		this.log.addEvent(`Total profit over the last ${time} days: ${profit}`)
 	}
 	debug() {
-		console.log('+-----------------------------------------+');
-		console.log('|              CORPORATION                |');
-		console.log('|                                         |');
-		console.log(`| Current Funds: ${this.funds} Credits       |`);
-		console.log('|                                         |');
-		console.log('|+----------------+-----+----------------+|');
-		console.log('||    Resource    |Unit | Market Value  ||');
-		console.log('|+----------------+-----+----------------+|');
-		console.log(`|| ${this.resource.name} | ${this.resource.amount} | ${this.resource.marketValue} Credits ||`);
-		console.log('|+----------------+-----+----------------+|');
-		console.log('|                                         |');
-		console.log('|+---------------+------------------+-----+---------+----------+---------------------+');
-		console.log('||  Department   | Productivity/Hr  |Budget|  Morale |ManagerSkill|Resource Produced/Sold|');
-		console.log('|+---------------+------------------+-----+---------+----------+---------------------+');
+		console.log('+----------------------------------------------------------------------------------+');
+		console.log('| Soleng Corporation                                                               |');
+		console.log(`| Funds: ${this.funds}    Time: ${this.timePassed}                                  |`);
+		console.log('+----------------------------------------------------------------------------------+');
+		console.log('| Department         | Productivity | Budget | Morale | Manager Skill | Operation  |');
+		console.log('|----------------------------------------------------------------------------------|');
 		
-		for(let department of this.Departments){
-			let deptName = department.name;
-			let prod = department.productivity;
-			let budget = department.budget;
-			let morale = department.morale;
-			let manager = department.manager;
-			
-			console.log(`|| ${deptName} | ${prod} units | ${budget} | ${morale} | ${manager} |`);
-			console.log('|+---------------+------------------+-----+---------+----------+');
+		for(let department of this.Departments) {
+			let deptName = department.name.padEnd(18, ' ');
+			let prod = department.productivity.toString().padEnd(13, ' ');
+			let budget = department.budget.toString().padEnd(7, ' ');
+			let morale = department.morale.toString().padEnd(7, ' ');
+			let manager = department.manager.toString().padEnd(14, ' ');
+			let operation = '            '
+	
+			console.log(`| ${deptName}| ${prod}| ${budget}| ${morale}| ${manager}| ${operation}|`);
 		}
-		console.log('|                                         |');
-		console.log(`| Time Passed: ${this.timePassed} Days                    |`);
-		console.log('+-----------------------------------------+');
+	
+		console.log('+----------------------------------------------------------------------------------+');
+		console.log('| Resources          | Amount       | Market Value | Volume                      |');
+		console.log('|----------------------------------------------------------------------------------|');
+		let resName = this.resource.name.padEnd(18, ' ');
+		let resAmount = this.resource.amount.toString().padEnd(12, ' ');
+		let resMarketValue = `${this.resource.marketValue}/Unit`.padEnd(13, ' ');
+		let resVolume = `${this.resource.volume} m^3/Unit`.padEnd(30, ' ');
+	
+		console.log(`| ${resName}| ${resAmount}| ${resMarketValue}| ${resVolume}|`);
+		console.log('+----------------------------------------------------------------------------------+');
 	}
+	
 }
